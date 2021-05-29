@@ -4,10 +4,9 @@ from os import sys
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
-import PIL.Image as Image
 from scipy.sparse import dok_matrix, csc_matrix
+from numpy.linalg import lstsq
 from scipy.sparse.linalg import spsolve
-
 from tqdm import tqdm
 
 parser = argparse.ArgumentParser(description='Src and Out images')
@@ -27,10 +26,6 @@ def getLaplacian(gx, gy):
     kernel_l = np.array([[0, -1, 0], [-1, 4, -1], [0, -1, 0]])
     lap_x = cv2.filter2D(gx, -1, kernel_l)
     lap_y = cv2.filter2D(gy, -1, kernel_l)
-    # lap_x[[0, lap_x.shape[0] - 1], :] = gx[[0, lap_x.shape[0] - 1], :]
-    # lap_x[:, [0, lap_x.shape[1] - 1]] = gx[:, [0, lap_x.shape[1] - 1]]
-    # lap_y[[0, lap_y.shape[0] - 1], :] = gy[[0, lap_y.shape[0] - 1], :]
-    # lap_y[:, [0, lap_y.shape[1] - 1]] = gy[:, [0, lap_y.shape[1] - 1]]
     return lap_x + lap_y
 
 def getA(fig):
@@ -38,10 +33,11 @@ def getA(fig):
     dj = [1, 0, -1, 0]
     A = dok_matrix((fig.shape[0] * fig.shape[1], fig.shape[0] * fig.shape[1]))
     print('Getting A...')
+    cnt =0
     for i in tqdm(range(fig.shape[0])):
         for j in range(fig.shape[1]):
             # if it's margin, A[row, row] should be 1
-            row = i * fig.shape[0] + j
+            row = i * fig.shape[1] + j
             is_margin = False
             for k in range(4):
                 ni, nj = i + di[k], j + dj[k]
@@ -54,7 +50,7 @@ def getA(fig):
             A[row, row] = -4
             for k in range(4):
                 ni, nj = i + di[k], j + dj[k]
-                col = ni * fig.shape[0] + nj
+                col = ni * fig.shape[1] + nj
                 A[row, col] = 1
     return A.tocsc()
 
@@ -70,12 +66,17 @@ if __name__ == '__main__':
     tgt_gx, tgt_gy = getGradients(tgt)
     tgt_gx[tgt_ROI[0][0]:tgt_ROI[1][0] + 1, tgt_ROI[0][1]:tgt_ROI[1][1] + 1] = ROI_gx
     tgt_gy[tgt_ROI[0][0]:tgt_ROI[1][0] + 1, tgt_ROI[0][1]:tgt_ROI[1][1] + 1] = ROI_gy
-    # print(tgt_gx.shape)
-    lap = getLaplacian(tgt_gx, tgt_gy)
+    print(tgt_gx.shape)
+    lap = getLaplacian(ROI_gx, ROI_gy)
+    lap[[0, lap.shape[0] - 1], :] = tgt[[tgt_ROI[0][0], tgt_ROI[1][0]], tgt_ROI[0][1]:tgt_ROI[1][1] + 1]
+    lap[:, [0, lap.shape[1] - 1]] = tgt[tgt_ROI[0][0]:tgt_ROI[1][0] + 1, [tgt_ROI[0][1], tgt_ROI[1][1]]]
     print(lap.shape)
     A = getA(lap)
+    print(A.todense())
     B = csc_matrix(lap.reshape((lap.shape[0] * lap.shape[1], lap.shape[2])))
-    X = spsolve(A, B)
-    print(X.toarray().shape)
-    plt.imshow(X.toarray())
-    plt.show()
+    #X = lstsq(A.todense(), B.todense(), rcond=-1)
+    X = spsolve(A, B).toarray().reshape(lap.shape)
+    tgt[tgt_ROI[0][0]:tgt_ROI[1][0] + 1, tgt_ROI[0][1]:tgt_ROI[1][1] + 1] = X[:, :]
+    print(X)
+    cv2.imwrite('merge.png', tgt)
+    
