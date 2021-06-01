@@ -28,17 +28,13 @@ def get_laplacian(height: int, width: int, mask: np.ndarray) -> csc_matrix:
 				A[row, row + width] = -1
 	return A.tocsc()
 
-def poisson_edit(src_image: np.ndarray, src_mask: np.ndarray, tgt_image: np.ndarray, tgt_mask: np.ndarray, method='Normal'):
+def poisson_edit(src_image: np.ndarray, src_mask: np.ndarray, tgt_image: np.ndarray, tgt_mask: np.ndarray, method='Normal') -> np.ndarray:
 	src_image = src_image / 255
 	tgt_image = tgt_image / 255
 	ys, xs = np.nonzero(tgt_mask)
 	tgt_obj_point = (ys.min(), xs.min())
 	tgt_obj_height = ys.max() - ys.min() + 1
 	tgt_obj_width = xs.max() - xs.min() + 1
-
-	# tgt[tgt_mask != 0] = src[src_mask != 0]
-	src_mask[src_mask != 0] = 1
-	tgt_mask[tgt_mask != 0] = 1
 
 	"""Extract the src region and resize it to the tgt region"""
 	src_lap = cv2.filter2D(src_image, -1, np.array([[0, -1, 0], [-1, 4, -1], [0, -1, 0]]))
@@ -57,3 +53,16 @@ def poisson_edit(src_image: np.ndarray, src_mask: np.ndarray, tgt_image: np.ndar
 	X[X < 0] = 0
 
 	return X
+
+def direct_blending(src_image: np.ndarray, tgt_image: np.ndarray, mask: np.ndarray) -> np.ndarray:
+	"""Direct blending method: result = src_image * mask + tgt_image * (1 - mask)
+	Args:
+		src_image: image that contains the face to be pasted
+		tgt_image: image that contains the face to be replaced
+		mask: the binary mask image
+	Returns:
+		tgt_image: tgt_image with face replaced with the face in src_image
+	"""
+	for i in range(3):
+		tgt_image[:, :, i] = src_image[:,:,i] * mask + tgt_image[:, :, i] * (1 - mask)
+	return tgt_image

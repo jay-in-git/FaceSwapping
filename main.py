@@ -21,14 +21,15 @@ if __name__ == '__main__':
 	argvs = parser.parse_args()
 	src_image = cv2.imread(argvs.src_image)
 	tgt_image = cv2.imread(argvs.tgt_image)
-	src_mask = cv2.imread(argvs.src_mask, cv2.IMREAD_GRAYSCALE)
-	tgt_mask = cv2.imread(argvs.tgt_mask, cv2.IMREAD_GRAYSCALE)
+	src_mask = cv2.imread(argvs.src_mask, cv2.IMREAD_GRAYSCALE) // 255
+	tgt_mask = cv2.imread(argvs.tgt_mask, cv2.IMREAD_GRAYSCALE) // 255
 
 	src_image = align(src_image, src_mask, tgt_image, tgt_mask)
+	print('Image aligned!')
 	if argvs.method == methods[0]:
 		result = blending.poisson_edit(src_image, src_mask, tgt_image, tgt_mask, method='Normal')
 	elif argvs.method == methods[1]:
-		pass
+		result = blending.direct_blending(src_image, tgt_image, tgt_mask)
 	else:
 		pass
 
