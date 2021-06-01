@@ -54,14 +54,16 @@ def poisson_edit(src_image: np.ndarray, src_mask: np.ndarray, tgt_image: np.ndar
 
     """Extract the src region and resize it to the tgt region"""
     src_lap = cv2.filter2D(src_image, -1, np.array([[0, -1, 0], [-1, 4, -1], [0, -1, 0]]))
-    roi = src_lap[tgt_obj_point[0]:tgt_obj_point[0] + tgt_obj_height, tgt_obj_point[1]:tgt_obj_point[1] + tgt_obj_width, :]
 
     A = getLaplacian(tgt_image.shape[0], tgt_image.shape[1], tgt_mask)
     print('Construction done.')
 
-    tgt_image[tgt_obj_point[0]:tgt_obj_point[0] + tgt_obj_height, tgt_obj_point[1]:tgt_obj_point[1] + tgt_obj_width, :] = roi
-    tgt_mat = tgt_image.reshape((tgt_image.shape[0] * tgt_image.shape[1], tgt_image.shape[2]))
-    B = csc_matrix(tgt_mat)
+    tgt_mask_flatten = tgt_mask.flatten()
+    tgt_array = tgt_image.reshape((tgt_image.shape[0] * tgt_image.shape[1], tgt_image.shape[2]))
+
+    B_array = src_lap.reshape((tgt_image.shape[0] * tgt_image.shape[1], tgt_image.shape[2]))
+    B_array[tgt_mask_flatten == 0] = tgt_array[tgt_mask_flatten == 0]
+    B = csc_matrix(B_array)
 
     X = spsolve(A, B).toarray() * 255
     X = X.reshape(tgt_image.shape)
