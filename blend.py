@@ -1,82 +1,95 @@
-from operator import is_
 import cv2
-from os import sys
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.sparse import dok_matrix, csc_matrix
-from numpy.linalg import lstsq
+from scipy.sparse import dok_matrix, csc_matrix, lil_matrix, block_diag, dia_matrix
 from scipy.sparse.linalg import spsolve
 from tqdm import tqdm
 
 parser = argparse.ArgumentParser(description='Src and Out images')
-parser.add_argument('-i', type=str, dest="inPath")
-parser.add_argument('-o', type=str, dest="outPath")
-
-def getROIs(src, tgt):
+parser.add_argument('-s', type=str, dest="srcPath")
+parser.add_argument('-t', type=str, dest="tgtPath")
+parser.add_argument('-sm', type=str, dest="smPath")
+parser.add_argument('-tm', type=str, dest="tmPath")
+import time
+def getTestCase(src, tgt):
     # left-up and right-down points
-    return ((303, 437), (485, 663)), ((146, 644), (223, 746))
+    return ((285, 437), (485, 663)), ((148, 640), (230, 743))
 
-def getGradients(fig):
-    kernel_x = np.array([0, -1, 1])
-    kernel_y = np.array([[0], [-1], [1]])
-    return cv2.filter2D(fig, -1, kernel_x), cv2.filter2D(fig, -1, kernel_y)
-
-def getLaplacian(gx, gy):
-    kernel_l = np.array([[0, -1, 0], [-1, 4, -1], [0, -1, 0]])
-    lap_x = cv2.filter2D(gx, -1, kernel_l)
-    lap_y = cv2.filter2D(gy, -1, kernel_l)
-    return lap_x + lap_y
-
-def getA(fig):
-    di = [0, -1, 0, 1]
-    dj = [1, 0, -1, 0]
-    A = dok_matrix((fig.shape[0] * fig.shape[1], fig.shape[0] * fig.shape[1]))
-    print('Getting A...')
-    cnt =0
-    for i in tqdm(range(fig.shape[0])):
-        for j in range(fig.shape[1]):
-            # if it's margin, A[row, row] should be 1
-            row = i * fig.shape[1] + j
-            is_margin = False
-            for k in range(4):
-                ni, nj = i + di[k], j + dj[k]
-                if ni < 0 or ni >= fig.shape[0] or nj < 0 or nj >= fig.shape[1]:
-                    is_margin = True
-            if is_margin:
+def getLaplacian(height, width, mask):
+    # Construct laplacian matrix
+    A = dok_matrix((height * width, height * width))
+    for y in tqdm(range(height)):
+        for x in range(width):
+            row = y * width + x
+            if mask[y, x] == 0:
                 A[row, row] = 1
-                continue
-            # if it's not, A[row, rrow] and the neighbor should be laplacian equation
-            A[row, row] = -4
-            for k in range(4):
-                ni, nj = i + di[k], j + dj[k]
-                col = ni * fig.shape[1] + nj
-                A[row, col] = 1
+            else:
+                A[row, row] = 4
+                A[row, row + 1] = -1
+                A[row, row - 1] = -1
+                A[row, row - width] = -1
+                A[row, row + width] = -1
+    # A.setdiag(4, 0)
+    # A.setdiag(-1, -1)
+    # A.setdiag(-1, 1)
+    # A.setdiag(-1, -width)
+    # A.setdiag(-1, width)
+    # A = A.todok()
+    # ys, xs = np.where(mask == 0)
+    # start = time.time()
+    # for y in tqdm(range(1, height - 1)):
+    #     for x in range(1, width - 1):
+    #         if mask[y, x] == 0:
+    #             row = y * width + x
+    #             A[row, row] = 1
+    #             A[row, row + 1] = 0
+    #             A[row, row - 1] = 0
+    #             A[row, row + width] = 0
+    #             A[row, row - width] = 0
     return A.tocsc()
+
+def poisson_edit(source: np.ndarray, source_mask: np.ndarray, target: np.ndarray, target_mask: np.ndarray, method='Normal'):
+    source = source / 255
+    target = target / 255
+    ys, xs = np.nonzero(source_mask)
+    src_obj_point = (ys.min(), xs.min())
+    src_obj_height = ys.max() - ys.min() + 1
+    src_obj_width = xs.max() - xs.min() + 1
+
+    ys, xs = np.nonzero(target_mask)
+    tgt_obj_point = (ys.min(), xs.min())
+    tgt_obj_height = ys.max() - ys.min() + 1
+    tgt_obj_width = xs.max() - xs.min() + 1
+
+    # target[target_mask != 0] = source[source_mask != 0]
+    source_mask[source_mask != 0] = 1
+    target_mask[target_mask != 0] = 1
+
+    """Extract the source region and resize it to the target region"""
+    source_lap = cv2.filter2D(source, -1, np.array([[0, -1, 0], [-1, 4, -1], [0, -1, 0]]))
+    roi = source_lap[src_obj_point[0]:src_obj_point[0] + src_obj_height, src_obj_point[1]:src_obj_point[1] + src_obj_width, :]
+    roi = cv2.resize(roi, (tgt_obj_width, tgt_obj_height))
+
+    A = getLaplacian(target.shape[0], target.shape[1], target_mask)
+    print('Construction done.')
+
+    target[tgt_obj_point[0]:tgt_obj_point[0] + tgt_obj_height, tgt_obj_point[1]:tgt_obj_point[1] + tgt_obj_width, :] = roi
+    target_mat = target.reshape((target.shape[0] * target.shape[1], target.shape[2]))
+    B = csc_matrix(target_mat)
+
+    X = spsolve(A, B).toarray()
+    X = X.reshape(target.shape)
+    X[X > 255] = 255
+    X[X < 0] = 0
+
+    return X * 255
 
 if __name__ == '__main__':
     argvs = parser.parse_args()
-    src = cv2.imread(argvs.inPath)
-    tgt = cv2.imread(argvs.outPath)
-    src_ROI, tgt_ROI = getROIs(src, tgt)
-    ROI_pixels = src[src_ROI[0][0]:src_ROI[1][0] + 1, src_ROI[0][1]:src_ROI[1][1] + 1, :]
-    ROI_pixels = cv2.resize(ROI_pixels, (tgt_ROI[1][1] - tgt_ROI[0][1] + 1, tgt_ROI[1][0] - tgt_ROI[0][0] + 1))
-    
-    ROI_gx, ROI_gy = getGradients(ROI_pixels)
-    tgt_gx, tgt_gy = getGradients(tgt)
-    tgt_gx[tgt_ROI[0][0]:tgt_ROI[1][0] + 1, tgt_ROI[0][1]:tgt_ROI[1][1] + 1] = ROI_gx
-    tgt_gy[tgt_ROI[0][0]:tgt_ROI[1][0] + 1, tgt_ROI[0][1]:tgt_ROI[1][1] + 1] = ROI_gy
-    print(tgt_gx.shape)
-    lap = getLaplacian(ROI_gx, ROI_gy)
-    lap[[0, lap.shape[0] - 1], :] = tgt[[tgt_ROI[0][0], tgt_ROI[1][0]], tgt_ROI[0][1]:tgt_ROI[1][1] + 1]
-    lap[:, [0, lap.shape[1] - 1]] = tgt[tgt_ROI[0][0]:tgt_ROI[1][0] + 1, [tgt_ROI[0][1], tgt_ROI[1][1]]]
-    print(lap.shape)
-    A = getA(lap)
-    print(A.todense())
-    B = csc_matrix(lap.reshape((lap.shape[0] * lap.shape[1], lap.shape[2])))
-    #X = lstsq(A.todense(), B.todense(), rcond=-1)
-    X = spsolve(A, B).toarray().reshape(lap.shape)
-    tgt[tgt_ROI[0][0]:tgt_ROI[1][0] + 1, tgt_ROI[0][1]:tgt_ROI[1][1] + 1] = X[:, :]
-    print(X)
-    cv2.imwrite('merge.png', tgt)
-    
+    src = cv2.imread(argvs.srcPath)
+    tgt = cv2.imread(argvs.tgtPath)
+    src_mask = cv2.imread(argvs.smPath, cv2.IMREAD_GRAYSCALE)
+    tgt_mask = cv2.imread(argvs.tmPath, cv2.IMREAD_GRAYSCALE)
+    result = poisson_edit(src, src_mask, tgt, tgt_mask, method='Normal')
+    cv2.imwrite('merge.png', result)
