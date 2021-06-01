@@ -7,7 +7,7 @@ from tqdm import tqdm
 from utility import *
 import blending
 
-methods = ['poisson', 'direct', 'gaussian']
+methods = ['poisson', 'direct', 'multi']
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='Src and Out images')
@@ -24,13 +24,15 @@ if __name__ == '__main__':
 	src_mask = cv2.imread(argvs.src_mask, cv2.IMREAD_GRAYSCALE) // 255
 	tgt_mask = cv2.imread(argvs.tgt_mask, cv2.IMREAD_GRAYSCALE) // 255
 
+	print('Aligning image...')
 	src_image = align(src_image, src_mask, tgt_image, tgt_mask)
-	print('Image aligned!')
+
 	if argvs.method == methods[0]:
 		result = blending.poisson_edit(src_image, src_mask, tgt_image, tgt_mask, method='Normal')
 	elif argvs.method == methods[1]:
 		result = blending.direct_blending(src_image, tgt_image, tgt_mask)
 	else:
-		pass
+		result = blending.multi_resolution_blending(src_image, tgt_image, tgt_mask)
 
+	print(f'Result image stored to {argvs.output}')
 	cv2.imwrite(argvs.output, result)

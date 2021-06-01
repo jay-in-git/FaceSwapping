@@ -1,6 +1,19 @@
 import cv2
 import numpy as np
 
+def combine(src_image: np.ndarray, tgt_image: np.ndarray, mask: np.ndarray) -> np.ndarray:
+	"""Perform result_image = src_image * mask + tgt_image * (1 - mask)
+	Args:
+	    src_image: source image that are keep if mask = 1
+	    tgt_image: target image that are keep if mask = 0
+	    mask: the binary mask image
+    Returns:
+	    tgt_image: tgt_image with face replaced with the face in src_image
+	"""
+	for i in range(3):
+		tgt_image[:, :, i] = src_image[:,:,i] * mask + tgt_image[:, :, i] * (1 - mask)
+	return tgt_image
+
 def align(src_image: np.ndarray, src_mask: np.ndarray, tgt_image: np.ndarray, tgt_mask: np.ndarray) -> np.ndarray:
 	"""Align the face in source image with the face in target image 
 	Args:
