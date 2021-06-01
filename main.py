@@ -2,12 +2,13 @@ import cv2
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
+import blending
 from tqdm import tqdm
 
 from utility import *
 # import blending
 
-methods = ['direct', 'gaussian', 'poisson']
+methods = ['poisson', 'direct', 'gaussian']
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Src and Out images')
@@ -26,7 +27,7 @@ if __name__ == '__main__':
 
     src_image = align(src_image, src_mask, tgt_image, tgt_mask)
     if argvs.method == methods[0]:
-        # result = blending.poisson_edit(src_image, src_mask, tgt_image, tgt_mask, method='Normal')
+        result = blending.poisson_edit(src_image, src_mask, tgt_image, tgt_mask, method='Normal')
     elif argvs.method == methods[1]:
         pass
     else:
