@@ -8,6 +8,8 @@ from utility import *
 import blending
 from mask import get_mask
 methods = ['poisson', 'direct', 'multi']
+options = ['face', 'head', 'eye', 'mouth', 'nose']
+
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='Src and Out images')
@@ -15,12 +17,13 @@ if __name__ == '__main__':
 	parser.add_argument('tgt_image', type=str)
 	parser.add_argument('-o', '--output', type=str, default='result.jpg')
 	parser.add_argument('--method', type=str, default='poisson', choices=methods)
-	
+	parser.add_argument('--option', type=str, default='face', choices=options)
+
 	argvs = parser.parse_args()
 	src_image = cv2.imread(argvs.src_image)
 	tgt_image = cv2.imread(argvs.tgt_image)
-	src_mask = get_mask(src_image)
-	tgt_mask = get_mask(tgt_image)
+	src_mask = get_mask(src_image, argvs.option)
+	tgt_mask = get_mask(tgt_image, argvs.option)
 
 	print('Aligning image...')
 	src_image = align(src_image, src_mask, tgt_image, tgt_mask)
