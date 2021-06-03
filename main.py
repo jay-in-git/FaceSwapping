@@ -29,7 +29,7 @@ if __name__ == '__main__':
 	src_image = align(src_image, src_mask, tgt_image, tgt_mask)
 
 	if argvs.method == methods[0]:
-		result = blending.poisson_edit(src_image, src_mask, tgt_image, tgt_mask, method='Normal')
+		result = blending.poisson_edit(src_image, tgt_image, tgt_mask)
 	elif argvs.method == methods[1]:
 		result = blending.direct_blending(src_image, tgt_image, tgt_mask)
 	else:

@@ -5,7 +5,7 @@ from scipy.sparse import dok_matrix, csc_matrix
 from scipy.sparse.linalg import spsolve
 from tqdm import tqdm
 
-from utility import combine
+from utility import align, combine
 
 def get_laplacian(height: int, width: int, mask: np.ndarray) -> csc_matrix:
 	"""Get laplacian matrix: the linear equation matrix A from AX = B
@@ -30,19 +30,22 @@ def get_laplacian(height: int, width: int, mask: np.ndarray) -> csc_matrix:
 				A[row, row + width] = -1
 	return A.tocsc()
 
-def poisson_edit(src_image: np.ndarray, src_mask: np.ndarray, tgt_image: np.ndarray, tgt_mask: np.ndarray, method='Normal') -> np.ndarray:
+def poisson_edit(src_image: np.ndarray, tgt_image: np.ndarray, tgt_mask: np.ndarray, alpha=1) -> np.ndarray:
 	"""Poisson image editing: result = tgt_image[tgt_mask != 0] union X achieved by poisson equation AX=B
 	Args:
-		height: the height of tgt image
-		width: the width of tgt image
-		mask: the mask of ROI of tgt image
+		src_image: source ROI image to be blended, with size equal to tgt_image
+		tgt_image: target ROI image to be replaced.
+		tgt_mask: mask that define the ROI region, with size equal to tgt_image
 	Returns:
-		A: the poisson equation linear function
+		X: the solution to poisson equation
 	"""
 	src_image = src_image / 255
 	tgt_image = tgt_image / 255
 
 	src_lap = cv2.filter2D(src_image, -1, np.array([[0, -1, 0], [-1, 4, -1], [0, -1, 0]]))
+	tgt_lap = cv2.filter2D(tgt_image, -1, np.array([[0, -1, 0], [-1, 4, -1], [0, -1, 0]]))
+	src_lap = src_lap.reshape((tgt_image.shape[0] * tgt_image.shape[1], tgt_image.shape[2]))
+	tgt_lap = tgt_lap.reshape((tgt_image.shape[0] * tgt_image.shape[1], tgt_image.shape[2]))
 
 	A = get_laplacian(tgt_image.shape[0], tgt_image.shape[1], tgt_mask)
 	print('Construction done.')
@@ -50,7 +53,7 @@ def poisson_edit(src_image: np.ndarray, src_mask: np.ndarray, tgt_image: np.ndar
 	tgt_mask_flatten = tgt_mask.flatten()
 	tgt_array = tgt_image.reshape((tgt_image.shape[0] * tgt_image.shape[1], tgt_image.shape[2]))
 
-	B_array = src_lap.reshape((tgt_image.shape[0] * tgt_image.shape[1], tgt_image.shape[2]))
+	B_array = alpha * src_lap + (1 - alpha) * tgt_lap
 	B_array[tgt_mask_flatten == 0] = tgt_array[tgt_mask_flatten == 0]
 	B = csc_matrix(B_array)
 
@@ -152,3 +155,14 @@ def multi_resolution_blending(src_image: np.ndarray, tgt_image: np.ndarray, mask
 		reconstruct = cv2.add(reconstruct, laplacian)
 
 	return reconstruct
+
+if __name__ == '__main__':
+	from os import sys
+	from utility import align
+	src_image = cv2.imread(sys.argv[1])
+	tgt_image = cv2.imread(sys.argv[2])
+	src_mask = cv2.imread(sys.argv[3], cv2.IMREAD_GRAYSCALE)
+	tgt_mask = cv2.imread(sys.argv[4], cv2.IMREAD_GRAYSCALE)
+
+	result = poisson_edit(align(src_image, src_mask, tgt_image, tgt_mask), tgt_image, tgt_mask, alpha=0.5)
+	cv2.imwrite('test.png', result)
