@@ -33,9 +33,10 @@ def get_laplacian(height: int, width: int, mask: np.ndarray) -> csc_matrix:
 def poisson_edit(src_image: np.ndarray, tgt_image: np.ndarray, tgt_mask: np.ndarray, alpha=1) -> np.ndarray:
 	"""Poisson image editing: result = tgt_image[tgt_mask != 0] union X achieved by poisson equation AX=B
 	Args:
-		src_image: source ROI image to be blended, with size equal to tgt_image
-		tgt_image: target ROI image to be replaced.
-		tgt_mask: mask that define the ROI region, with size equal to tgt_image
+		src_image: image that contains the face to be pasted
+		tgt_image: image that contains the face to be replaced
+		tgt_mask: the binary mask image
+		alpha: the ratio of mix gradient blending
 	Returns:
 		X: the solution to poisson equation
 	"""
