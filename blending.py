@@ -3,32 +3,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.sparse import dok_matrix, csc_matrix
 from scipy.sparse.linalg import spsolve
-from tqdm import tqdm
 
-from utility import align, combine
+from utility import align, combine, get_laplacian
 
-def get_laplacian(height: int, width: int, mask: np.ndarray) -> csc_matrix:
-	"""Get laplacian matrix: the linear equation matrix A from AX = B
-	Args:
-		height: the height of tgt image
-		width: the width of tgt image
-		mask: the mask of ROI of tgt image
-	Returns:
-		A: the poisson equation linear function
-	"""
-	A = dok_matrix((height * width, height * width))
-	for y in tqdm(range(height)):
-		for x in range(width):
-			row = y * width + x
-			if mask[y, x] == 0:
-				A[row, row] = 1
-			else:
-				A[row, row] = 4
-				A[row, row + 1] = -1
-				A[row, row - 1] = -1
-				A[row, row - width] = -1
-				A[row, row + width] = -1
-	return A.tocsc()
 
 def poisson_edit(src_image: np.ndarray, tgt_image: np.ndarray, tgt_mask: np.ndarray, alpha=1) -> np.ndarray:
 	"""Poisson image editing: result = tgt_image[tgt_mask != 0] union X achieved by poisson equation AX=B
@@ -165,5 +142,5 @@ if __name__ == '__main__':
 	src_mask = cv2.imread(sys.argv[3], cv2.IMREAD_GRAYSCALE)
 	tgt_mask = cv2.imread(sys.argv[4], cv2.IMREAD_GRAYSCALE)
 
-	result = poisson_edit(align(src_image, src_mask, tgt_image, tgt_mask), tgt_image, tgt_mask, alpha=0.5)
+	result = poisson_edit(align(src_image, src_mask, tgt_image, tgt_mask), tgt_image, tgt_mask, alpha=0.8)
 	cv2.imwrite('test.png', result)

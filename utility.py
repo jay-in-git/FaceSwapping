@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from scipy.sparse import dok_matrix, csc_matrix
 
 def combine(src_image: np.ndarray, tgt_image: np.ndarray, mask: np.ndarray) -> np.ndarray:
 	"""Perform result_image = src_image * mask + tgt_image * (1 - mask)
@@ -54,3 +55,26 @@ def align(src_image: np.ndarray, src_mask: np.ndarray, tgt_image: np.ndarray, tg
 				aligned_src[i][j] = 0
 
 	return aligned_src
+
+def get_laplacian(height: int, width: int, mask: np.ndarray) -> csc_matrix:
+	"""Get laplacian matrix: the linear equation matrix A from AX = B
+	Args:
+		height: the height of tgt image
+		width: the width of tgt image
+		mask: the mask of ROI of tgt image
+	Returns:
+		A: the poisson equation linear function
+	"""
+	A = dok_matrix((height * width, height * width))
+	for y in range(height):
+		for x in range(width):
+			row = y * width + x
+			if mask[y, x] == 0:
+				A[row, row] = 1
+			else:
+				A[row, row] = 4
+				A[row, row + 1] = -1
+				A[row, row - 1] = -1
+				A[row, row - width] = -1
+				A[row, row + width] = -1
+	return A.tocsc()
