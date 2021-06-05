@@ -6,7 +6,7 @@ Digital image processing final project.
 
 ```
 $ git clone https://github.com/jay-in-git/FaceSwapping.git
-$ ce FaceSwapping
+$ cd FaceSwapping
 $ python3 -m pip install -r requirements.txt --user
 ```
 
