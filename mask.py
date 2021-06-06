@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 
-def get_mask(img, option='face'):
+def get_mask(img, option='face', ratio=0.85):
     face_landmarks_list = face_recognition.face_landmarks(img)
 
     if not face_landmarks_list:
@@ -117,13 +117,13 @@ def get_mask(img, option='face'):
             contours.append([y,x])
 
         for (j, i) in face_landmarks_list[0]['chin']:
-            x = round(0.85 * (i - nose_pos[0]) + nose_pos[0])
-            y = round(0.85 * (j - nose_pos[1]) + nose_pos[1])
+            x = round(ratio * (i - nose_pos[0]) + nose_pos[0])
+            y = round(ratio * (j - nose_pos[1]) + nose_pos[1])
             contours = [[y,x]] + contours
         
         contours = np.array(contours)
-        cv2.drawContours(img, [contours.reshape(-1,1,2)], -1, (255, 255, 255), -1)
-        return img
+        cv2.drawContours(mask, [contours.reshape(-1,1,2)], -1, 1, -1)
+        return mask
     
     else:
         option2key = {'eye' : 'eye', 'mouth' : 'lip', 'nose' : 'nose'}
