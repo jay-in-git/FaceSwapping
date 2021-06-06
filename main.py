@@ -10,14 +10,13 @@ from mask import get_mask
 methods = ['poisson', 'direct', 'multi']
 options = ['face', 'head', 'eye', 'mouth', 'nose']
 
-
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='Src and Out images')
-	parser.add_argument('src_image', type=str)
-	parser.add_argument('tgt_image', type=str)
-	parser.add_argument('-o', '--output', type=str, default='result.jpg')
-	parser.add_argument('--method', type=str, default='poisson', choices=methods)
-	parser.add_argument('--option', type=str, default='face', choices=options)
+	parser.add_argument('src_image', type=str, help="Image with the face to be pasted")
+	parser.add_argument('tgt_image', type=str, help="Imgae with the face to be replaced")
+	parser.add_argument('-o', '--output', type=str, default='result.jpg', help="Path to the result image")
+	parser.add_argument('--method', type=str, default='poisson', choices=methods, help="Blending method")
+	parser.add_argument('--option', type=str, default='face', choices=options, help="Specify specific part of face to be replaced")
 
 	argvs = parser.parse_args()
 	src_image = cv2.imread(argvs.src_image)

@@ -3,7 +3,6 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 
-
 def get_mask(img, option='face'):
     face_landmarks_list = face_recognition.face_landmarks(img)
     mask = np.zeros((img.shape[0], img.shape[1]))
