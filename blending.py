@@ -7,7 +7,7 @@ from scipy.sparse.linalg import spsolve
 from utility import align, combine, get_laplacian
 
 
-def poisson_edit(src_image: np.ndarray, tgt_image: np.ndarray, tgt_mask: np.ndarray, alpha=1) -> np.ndarray:
+def poisson_edit(src_image: np.ndarray, tgt_image: np.ndarray, tgt_mask: np.ndarray, alpha=1, src_decay=255, tgt_decay=255) -> np.ndarray:
 	"""Poisson image editing: result = tgt_image[tgt_mask != 0] union X achieved by poisson equation AX=B
 	Args:
 		src_image: image that contains the face to be pasted
@@ -17,8 +17,8 @@ def poisson_edit(src_image: np.ndarray, tgt_image: np.ndarray, tgt_mask: np.ndar
 	Returns:
 		X: the solution to poisson equation
 	"""
-	src_image = src_image / 383
-	tgt_image = tgt_image / 255
+	src_image = src_image / src_decay
+	tgt_image = tgt_image / tgt_decay
 
 	src_lap = cv2.filter2D(src_image, -1, np.array([[0, -1, 0], [-1, 4, -1], [0, -1, 0]]))
 	tgt_lap = cv2.filter2D(tgt_image, -1, np.array([[0, -1, 0], [-1, 4, -1], [0, -1, 0]]))
