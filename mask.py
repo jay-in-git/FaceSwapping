@@ -107,13 +107,13 @@ def get_mask(img, option='face', ratio=0.85):
         nose_pos //= len(face_landmarks_list[0]['nose_tip'])
         
         for (j, i) in face_landmarks_list[0]['left_eyebrow']:
-            x = round(1.1 * (i - nose_pos[0]) + nose_pos[0])
-            y = round(1.1 * (j - nose_pos[1]) + nose_pos[1])
+            x = round(1.3 * ratio * (i - nose_pos[0]) + nose_pos[0])
+            y = round(1.3 * ratio * (j - nose_pos[1]) + nose_pos[1])
             contours.append([y,x])
         
         for (j, i) in face_landmarks_list[0]['right_eyebrow']:
-            x = round(1.1 * (i - nose_pos[0]) + nose_pos[0])
-            y = round(1.1 * (j - nose_pos[1]) + nose_pos[1])
+            x = round(1.3 * ratio * (i - nose_pos[0]) + nose_pos[0])
+            y = round(1.3 * ratio * (j - nose_pos[1]) + nose_pos[1])
             contours.append([y,x])
 
         for (j, i) in face_landmarks_list[0]['chin']:
