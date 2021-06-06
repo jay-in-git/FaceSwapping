@@ -34,7 +34,7 @@ def poisson_edit(src_image: np.ndarray, tgt_image: np.ndarray, tgt_mask: np.ndar
 	B_array[tgt_mask_flatten == 0] = tgt_array[tgt_mask_flatten == 0]
 	B = csc_matrix(B_array)
 
-	X = spsolve(A, B).toarray() * 255
+	X = spsolve(A, B).toarray() * tgt_decay
 	X = X.reshape(tgt_image.shape)
 	X[X > 255] = 255
 	X[X < 0] = 0
