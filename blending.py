@@ -52,7 +52,7 @@ def direct_blending(src_image: np.ndarray, tgt_image: np.ndarray, mask: np.ndarr
     """
     return combine(src_image, tgt_image, mask)
 
-def multi_resolution_blending(src_image: np.ndarray, tgt_image: np.ndarray, mask: np.ndarray, n_steps=4) -> np.ndarray:
+def multi_resolution_blending(src_image: np.ndarray, tgt_image: np.ndarray, mask: np.ndarray, n_steps=6) -> np.ndarray:
 	"""Multi-resolution blending method
 	Args:
 		src_image: image that contains the face to be pasted
