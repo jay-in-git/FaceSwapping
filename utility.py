@@ -79,7 +79,7 @@ def get_laplacian(height: int, width: int, mask: np.ndarray) -> csc_matrix:
 				A[row, row + width] = -1
 	return A.tocsc()
 
-def get_pyramid(image: np.ndarray, n_steps=4) -> tuple(np.ndarray, np.ndarray):
+def get_pyramid(image: np.ndarray, n_steps=4) -> tuple[np.ndarray, np.ndarray]:
 	"""Compute Gaussian pyramid and Laplacian pyramid for image
 	Args:
 		image: the source image
