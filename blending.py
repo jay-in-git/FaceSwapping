@@ -4,8 +4,7 @@ import matplotlib.pyplot as plt
 from scipy.sparse import dok_matrix, csc_matrix
 from scipy.sparse.linalg import spsolve
 
-from utility import align, combine, get_laplacian
-
+from utility import align, combine, get_laplacian, get_pyramid
 
 def poisson_edit(src_image: np.ndarray, tgt_image: np.ndarray, tgt_mask: np.ndarray, alpha=1, src_decay=255, tgt_decay=255) -> np.ndarray:
 	"""Poisson image editing: result = tgt_image[tgt_mask != 0] union X achieved by poisson equation AX=B
@@ -42,7 +41,8 @@ def poisson_edit(src_image: np.ndarray, tgt_image: np.ndarray, tgt_mask: np.ndar
 	return X
 
 def direct_blending(src_image: np.ndarray, tgt_image: np.ndarray, mask: np.ndarray) -> np.ndarray:
-    """Direct blending method: result = src_image * mask + tgt_image * (1 - mask)
+    """Direct blending method: 
+		result = src_image * mask + tgt_image * (1 - mask)
     Args:
 	    src_image: image that contains the face to be pasted
 	    tgt_image: image that contains the face to be replaced
@@ -52,9 +52,8 @@ def direct_blending(src_image: np.ndarray, tgt_image: np.ndarray, mask: np.ndarr
     """
     return combine(src_image, tgt_image, mask)
 
-def multi_resolution_blending(src_image: np.ndarray, tgt_image: np.ndarray, mask: np.ndarray, n_level=5) -> np.ndarray:
-	"""Direct blending method: 
-		result = src_image * mask + tgt_image * (1 - mask)
+def multi_resolution_blending(src_image: np.ndarray, tgt_image: np.ndarray, mask: np.ndarray, n_steps=4) -> np.ndarray:
+	"""Multi-resolution blending method
 	Args:
 		src_image: image that contains the face to be pasted
 		tgt_image: image that contains the face to be replaced
@@ -63,76 +62,24 @@ def multi_resolution_blending(src_image: np.ndarray, tgt_image: np.ndarray, mask
 	Returns:
 		tgt_image: tgt_image with face replaced with the face in src_image
 	"""
-	mask = mask.astype(np.float32)
+	mask = mask.astype(np.float64)
+	src_image = src_image.astype(np.float64)
+	tgt_image = tgt_image.astype(np.float64)
 
-	print('Constructing gaussian pyramid...')
-	src_gaussian_pyramid = [src_image.copy()]
-	tgt_gaussian_pyramid = [tgt_image.copy()]
-	mask_gaussian_pyramid = [mask.copy()]
-	for i in range(n_level):
-		src_image = cv2.pyrDown(src_image)
-		tgt_image = cv2.pyrDown(tgt_image)
-		mask = cv2.pyrDown(mask)
-		src_gaussian_pyramid.append(src_image)
-		tgt_gaussian_pyramid.append(tgt_image)
-		mask_gaussian_pyramid.append(mask)
+	print('Constructing pyramid...')
+	src_gu, src_lap = get_pyramid(src_image, n_steps=n_steps)
+	tgt_gu, tgt_lap = get_pyramid(tgt_image, n_steps=n_steps)
+	mask_gu, _ = get_pyramid(mask, n_steps=n_steps)
 
-	print('Shapes of gaussian paramid:')
-	print('\tsource:', [i.shape for i in src_gaussian_pyramid])
-	print('\ttarget:', [i.shape for i in tgt_gaussian_pyramid])
-	print('\tmask:', [i.shape for i in mask_gaussian_pyramid])
-
-	print('Constructing Laplacian pyramid...')
-	src_laplacian_pyramid = [src_gaussian_pyramid[n_level]]
-	tgt_laplacian_pyramid = [tgt_gaussian_pyramid[n_level]]
-	for i in range(n_level, 0 , -1):
-		g = cv2.pyrUp(
-			src_gaussian_pyramid[i], 
-			dstsize=src_gaussian_pyramid[i-1].shape[1::-1],
-		)
-		src_laplacian_pyramid.append(
-			cv2.subtract(src_gaussian_pyramid[i-1], g),
-		)
-		g = cv2.pyrUp(
-			tgt_gaussian_pyramid[i], 
-			dstsize=tgt_gaussian_pyramid[i-1].shape[1::-1],
-		)
-		tgt_laplacian_pyramid.append(
-			cv2.subtract(tgt_gaussian_pyramid[i-1], g),
-		)
-
-	print('Shapes of laplacian paramid:')
-	print('\tsource:', [i.shape for i in src_laplacian_pyramid])
-	print('\ttarget:', [i.shape for i in tgt_laplacian_pyramid])
-	
-	# fig, axs = plt.subplots(2, n_level + 1)
-	# for i in range(n_level+1):
-	# 	axs[0][i].imshow(src_laplacian_pyramid[i])
-	# for i in range(n_level+1):
-	# 	axs[1][i].imshow(tgt_laplacian_pyramid[i])
-	# plt.show()
-
-	mask_gaussian_pyramid.reverse()
-	reconstruct = combine(
-		src_laplacian_pyramid[0], 
-		tgt_laplacian_pyramid[0], 
-		mask_gaussian_pyramid[0]
-	).astype(np.uint8)
-	for i in range(1, n_level+1):
-		# plt.imshow(reconstruct[:,:,::-1])
-		# plt.show()
-		reconstruct = cv2.pyrUp(
-			reconstruct, 
-			dstsize=tgt_laplacian_pyramid[i].shape[1::-1],
-		)
-		laplacian = combine(
-			src_laplacian_pyramid[i], 
-			tgt_laplacian_pyramid[i], 
-			mask_gaussian_pyramid[i],
-		).astype(np.uint8)
-		reconstruct = cv2.add(reconstruct, laplacian)
-
-	return reconstruct
+	print('Reconstructing blend image')
+	reconstruct = combine(src_gu[-1], tgt_gu[-1], mask_gu[-1])
+	for i in range(n_steps - 1, -1, -1):
+		row = int(src_lap[i].shape[0])
+		col = int(src_lap[i].shape[1])
+		reconstruct = cv2.resize(reconstruct, (col, row))
+		laplacian = combine(src_lap[i], tgt_lap[i], mask_gu[i])
+		reconstruct += laplacian
+	return reconstruct.astype(np.uint8)
 
 if __name__ == '__main__':
 	from os import sys

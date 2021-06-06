@@ -78,3 +78,26 @@ def get_laplacian(height: int, width: int, mask: np.ndarray) -> csc_matrix:
 				A[row, row - width] = -1
 				A[row, row + width] = -1
 	return A.tocsc()
+
+def get_pyramid(image: np.ndarray, n_steps=4) -> tuple[np.ndarray, np.ndarray]:
+	"""Compute Gaussian pyramid and Laplacian pyramid for image
+	Args:
+		image: the source image
+		n_steps: number of steps to construct pyramids
+	Returns:
+		gaussian_pyramid: Gaussian pyramid with length n_steps + 1
+		laplacian_pyramid: Laplacian pyramid with length n_steps
+	"""
+	gaussian_pyramid = [image.copy()]
+	laplacian_pyramid = []
+	for i in range(n_steps):
+		image_current = gaussian_pyramid[-1]
+		image_next = cv2.GaussianBlur(image_current, (5, 5), 0)
+		laplacian_pyramid.append(image_current - image_next)
+
+		col = int(np.ceil(image_next.shape[1] / 2))
+		row = int(np.ceil(image_next.shape[0] / 2))
+		image_next = cv2.resize(image_next, (col, row))
+		gaussian_pyramid.append(image_next)
+	
+	return gaussian_pyramid, laplacian_pyramid
