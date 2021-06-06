@@ -17,7 +17,7 @@ def poisson_edit(src_image: np.ndarray, tgt_image: np.ndarray, tgt_mask: np.ndar
 	Returns:
 		X: the solution to poisson equation
 	"""
-	src_image = src_image / 255
+	src_image = src_image / 383
 	tgt_image = tgt_image / 255
 
 	src_lap = cv2.filter2D(src_image, -1, np.array([[0, -1, 0], [-1, 4, -1], [0, -1, 0]]))
@@ -141,6 +141,8 @@ if __name__ == '__main__':
 	tgt_image = cv2.imread(sys.argv[2])
 	src_mask = cv2.imread(sys.argv[3], cv2.IMREAD_GRAYSCALE)
 	tgt_mask = cv2.imread(sys.argv[4], cv2.IMREAD_GRAYSCALE)
-
-	result = poisson_edit(align(src_image, src_mask, tgt_image, tgt_mask), tgt_image, tgt_mask, alpha=0.8)
+	print('Aligning')
+	src_image = align(src_image, src_mask, tgt_image, tgt_mask)
+	print('done')
+	result = poisson_edit(src_image, tgt_image, tgt_mask, alpha=0.7)
 	cv2.imwrite('test.png', result)
