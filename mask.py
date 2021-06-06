@@ -12,7 +12,7 @@ def get_mask(img, option='face'):
     
     mask = np.zeros((img.shape[0], img.shape[1]))
     
-    if option == 'face' or option == 'head':
+    if option == 'head':
         up_pos = [np.inf, -1]
         bottom_pos = [-np.inf, -1]
         left_pos = [-1, np.inf]
@@ -22,6 +22,7 @@ def get_mask(img, option='face'):
         right_eye_pos = np.array([0, 0])
         nose_pos = np.array([0, 0])
         lip_pos = np.array([0, 0])
+        contours = []
 
         for key in face_landmarks_list[0].keys():
             for (j, i) in face_landmarks_list[0][key]:
@@ -47,52 +48,82 @@ def get_mask(img, option='face'):
                     lip_pos[0] += i
                     lip_pos[1] += j
 
+        
+
         left_eye_pos //= len(face_landmarks_list[0]['left_eye'])
         right_eye_pos //= len(face_landmarks_list[0]['right_eye'])
         nose_pos //= len(face_landmarks_list[0]['nose_tip'])
         lip_pos //= len(face_landmarks_list[0]['bottom_lip'])
         
-        if option == 'head':
-            center[0] = round((left_eye_pos[0] + right_eye_pos[0]) // 2)
-            center[1] = (left_pos[1] + right_pos[1]) // 2
-            vertex = round(1.05 * (bottom_pos[0]) - center[0])
-            covertex = round(1.3 * (right_pos[1] - center[1]))
+        for key in face_landmarks_list[0].keys():
+            for (j, i) in face_landmarks_list[0][key]:
+                if 'eyebrow' in key:
+                    x = round(1.1 * (i - nose_pos[0]) + nose_pos[0])
+                    y = round(1.1 * (j - nose_pos[1]) + nose_pos[1])
+                    contours.append([y,x])
+                if 'chin' in key:
+                    x = round(0.85 * (i - nose_pos[0]) + nose_pos[0])
+                    y = round(0.85 * (j - nose_pos[1]) + nose_pos[1])
+                    contours = [[y,x]] + contours
 
-            cv2.ellipse(mask, (center[1], center[0]), (covertex, vertex), 0, 0, 360, 255, -1)
-            
-            for t in range(3):
-                face_landmarks_list[0]['chin'] = sorted(face_landmarks_list[0]['chin'], key = lambda x:(x[0]))
-                for i in range(1, len(face_landmarks_list[0]['chin'])):
-                    x = (face_landmarks_list[0]['chin'][i - 1][0] + face_landmarks_list[0]['chin'][i][0]) // 2
-                    y = (face_landmarks_list[0]['chin'][i - 1][1] + face_landmarks_list[0]['chin'][i][1]) // 2
-                    face_landmarks_list[0]['chin'].append((x, y))
-            
-            for i in range(mask.shape[0]):
-                for j in range(mask.shape[1]):
-                    if mask[i][j]:
-                        if j < bottom_pos[1]:
-                            for (j_, i_) in face_landmarks_list[0]['chin']:
-                                if i > i_ and j < j_ and j_ < bottom_pos[1]:
-                                    mask[i][j] = 0
-                                    break
-                        else:
-                            for (j_, i_) in face_landmarks_list[0]['chin']:
-                                if i > i_ and j > j_ and j_ > bottom_pos[1]:
-                                    mask[i][j] = 0
-                                    break
-            return mask
+        contours = np.array(contours)
+        center[0] = round((left_eye_pos[0] + right_eye_pos[0]) // 2)
+        center[1] = (left_pos[1] + right_pos[1]) // 2
+        vertex = round(1.05 * (bottom_pos[0]) - center[0])
+        covertex = round(1.3 * (right_pos[1] - center[1]))
+
+        cv2.ellipse(mask, (center[1], center[0]), (covertex, vertex), 0, 0, 360, 1, -1)
         
-        elif option == 'face':
-            center[0] = ((left_eye_pos[0] + right_eye_pos[0]) // 2 + nose_pos[0]) // 2
-            center[1] = (left_pos[1] + right_pos[1]) // 2
-            
-            # rotate = np.arctan((right_eye_pos[0]- left_eye_pos[0])/(right_eye_pos[1] - left_eye_pos[1]))
-            # rotate = ((rotate) / np.pi) * 180
-            
-            vertex = round(1.1 * ((0.5 * lip_pos[0] + 0.5 * bottom_pos[0]) - center[0]))
-            covertex = round(0.95 * (right_pos[1]- center[1]))
-            cv2.ellipse(mask, (center[1], center[0]), (covertex, vertex), 0, 0, 360, 255, -1)
-            return mask
+        for t in range(3):
+            face_landmarks_list[0]['chin'] = sorted(face_landmarks_list[0]['chin'], key = lambda x:(x[0]))
+            for i in range(1, len(face_landmarks_list[0]['chin'])):
+                x = (face_landmarks_list[0]['chin'][i - 1][0] + face_landmarks_list[0]['chin'][i][0]) // 2
+                y = (face_landmarks_list[0]['chin'][i - 1][1] + face_landmarks_list[0]['chin'][i][1]) // 2
+                face_landmarks_list[0]['chin'].append((x, y))
+        
+        for i in range(mask.shape[0]):
+            for j in range(mask.shape[1]):
+                if mask[i][j]:
+                    if j < bottom_pos[1]:
+                        for (j_, i_) in face_landmarks_list[0]['chin']:
+                            if i > i_ and j < j_ and j_ < bottom_pos[1]:
+                                mask[i][j] = 0
+                                break
+                    else:
+                        for (j_, i_) in face_landmarks_list[0]['chin']:
+                            if i > i_ and j > j_ and j_ > bottom_pos[1]:
+                                mask[i][j] = 0
+                                break
+        return mask
+        
+    elif option == 'face':
+        nose_pos = np.array([0, 0])
+        contours = []
+
+        for (j, i) in face_landmarks_list[0]['nose_tip']:
+            nose_pos[0] += i
+            nose_pos[1] += j
+        
+        nose_pos //= len(face_landmarks_list[0]['nose_tip'])
+        
+        for (j, i) in face_landmarks_list[0]['left_eyebrow']:
+            x = round(1.1 * (i - nose_pos[0]) + nose_pos[0])
+            y = round(1.1 * (j - nose_pos[1]) + nose_pos[1])
+            contours.append([y,x])
+        
+        for (j, i) in face_landmarks_list[0]['right_eyebrow']:
+            x = round(1.1 * (i - nose_pos[0]) + nose_pos[0])
+            y = round(1.1 * (j - nose_pos[1]) + nose_pos[1])
+            contours.append([y,x])
+
+        for (j, i) in face_landmarks_list[0]['chin']:
+            x = round(0.85 * (i - nose_pos[0]) + nose_pos[0])
+            y = round(0.85 * (j - nose_pos[1]) + nose_pos[1])
+            contours = [[y,x]] + contours
+        
+        contours = np.array(contours)
+        cv2.drawContours(img, [contours.reshape(-1,1,2)], -1, (255, 255, 255), -1)
+        return img
     
     else:
         option2key = {'eye' : 'eye', 'mouth' : 'lip', 'nose' : 'nose'}
@@ -121,6 +152,6 @@ def get_mask(img, option='face'):
     
 
 if __name__ == '__main__':
-    img = cv2.imread('./robert.jpeg')
-    mask = get_mask(img, 'head')
+    img = cv2.imread('./elon.jpeg')
+    mask = get_mask(img, 'face')
     cv2.imwrite("mask.jpg", mask)
