@@ -1,4 +1,5 @@
 .DS_Store
+img/*
 __pycache__/
 .vscode/
 *.png
